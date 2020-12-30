@@ -1,0 +1,6 @@
+.vscode/
+*.code-workspace
+build/
+install/
+dist/
+*.egg-info
