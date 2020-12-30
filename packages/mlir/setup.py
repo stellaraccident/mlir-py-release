@@ -146,20 +146,39 @@ check_py_dep('numpy', 'numpy')
 ################################################################################
 # Figure out where we are and where we are going.
 ################################################################################
-cwd = os.path.dirname(os.path.abspath(__file__))
-llvm_repo_dir = get_setting('LLVM_REPO_DIR',
-                            os.path.join(cwd, '..', 'llvm-project'))
+# report("Environment:")
+# for env_key in os.environ:
+#   report(f"  : {env_key} = {os.environ.get(env_key)}")
+repo_root = os.path.abspath(
+    get_setting('REPO_DIR', os.path.join(os.path.dirname(__file__), '..',
+                                         '..')))
+report(f'Using REPO_DIR = {repo_root}')
+llvm_repo_dir = get_setting(
+    'LLVM_REPO_DIR',
+    os.path.abspath(os.path.join(repo_root, '..', 'llvm-project')))
 report(f'Using LLVM_REPO_DIR = {llvm_repo_dir}')
 if not os.path.isfile(os.path.join(llvm_repo_dir, 'llvm', 'CMakeLists.txt')):
   abort(f'Could not find LLVM sources in {llvm_repo_dir}')
-build_dir = os.path.join(cwd, 'build', 'llvm')
-install_dir = os.path.join(cwd, 'install', 'llvm')
+build_dir = os.path.join(repo_root, 'build', 'llvm')
+install_dir = os.path.join(repo_root, 'install', 'llvm')
 
 ################################################################################
 # CMake configure.
 ################################################################################
 release_mode = get_bool_setting('RELEASE_MODE', True)
 assertions = get_bool_setting('LLVM_ASSERTIONS', False)
+
+#python_libdir = sysconfig.get_config_var('LIBDIR')
+#python_library = sysconfig.get_config_var('LDLIBRARY')
+# if python_libdir:
+#   python_library = os.path.join(python_libdir, python_library)
+
+# On manylinux, python is a static build, which should be fine, but CMake
+# disagrees. Fake it by letting it see a library that will never be needed.
+python_libdir = os.path.join(install_dir, 'fake_python/lib')
+os.makedirs(python_libdir, exist_ok=True)
+python_library = os.path.join(python_libdir, sysconfig.get_config_var('LIBRARY'))
+with open(python_library, 'wb') as f: pass
 
 cmake_args = [
     f'-S{os.path.join(llvm_repo_dir, "llvm")}',
@@ -172,8 +191,11 @@ cmake_args = [
     '-DLLVM_TARGETS_TO_BUILD=host',
     '-DLLVM_ENABLE_PROJECTS=mlir',
     '-DMLIR_BINDINGS_PYTHON_ENABLED=ON',
+    '-DMLIR_PYTHON_BINDINGS_VERSION_LOCKED=OFF',
     '-DLLVM_BUILD_LLVM_DYLIB=ON',
-    f'-DPython3_EXECUTABLE={sys.executable}',
+    f'-DPython3_EXECUTABLE:FILEPATH={sys.executable}',
+    f'-DPython3_INCLUDE_DIR:PATH={sysconfig.get_path("include")}',
+    f'-DPython3_LIBRARY:PATH={python_library}',
 ]
 if use_tool_path('ninja'):
   report('Using ninja')
