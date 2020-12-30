@@ -4,6 +4,8 @@
 
 # This setup.py file adapted from many places, including:
 #   https://github.com/pytorch/pytorch/blob/master/setup.py
+#   various places on stack overflow
+#   IREE setup files
 # (does anyone write these things except by copy-paste-mash-keys until it
 # works?)
 
