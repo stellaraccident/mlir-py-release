@@ -1,6 +1,9 @@
 name: Build MLIR
 
-on: [push, pull_request]
+on:
+  push:
+    branches: ['main']
+  pull_request:
 
 jobs:
   build_wheels:
@@ -12,17 +15,36 @@ jobs:
         os: [ubuntu-18.04]
 
     env:
+      CIBW_BEFORE_BUILD: pwd && ls -lF ./ && pip install -r main_checkout/requirements.txt && python -m sysconfig && ls -lR /opt/python/cp38-cp38/ && cmake --version
+      # Note that on Linux, we run under docker with an altered path.
+      CIBW_ENVIRONMENT_LINUX: "REPO_DIR=/project/main_checkout MAKEFLAGS=-j4"
+      CIBW_ENVIRONMENT_MACOS: "REPO_DIR=${{ github.workspace }}/main_checkout"
+      CIBW_ENVIRONMENT_WINDOWS: "REPO_DIR=${{ github.workspace }}/main_checkout"
+
       # build using a different image from the docker registry
-      CIBW_MANYLINUX_X86_64_IMAGE: dockcross/manylinux-x64
-      CIBW_MANYLINUX_I686_IMAGE: dockcross/manylinux-x86
+      #CIBW_MANYLINUX_X86_64_IMAGE: dockcross/manylinux-x64
+      #CIBW_MANYLINUX_I686_IMAGE: dockcross/manylinux-x86
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
+      CIBW_BUILD: cp38-*
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          path: 'main_checkout'
 
       - uses: actions/setup-python@v2
         name: Install Python
         with:
           python-version: '3.7'
+
+      - name: Checkout LLVM
+        run: |
+          python ${{ github.workspace }}/main_checkout/scripts/checkout_repo.py \
+            ${{ github.workspace }}/llvm-project \
+            https://github.com/llvm/llvm-project.git \
+            main \
+            ${{ github.workspace }}/main_checkout/llvm-project.version
 
       - name: Install cibuildwheel
         run: |
@@ -30,7 +52,8 @@ jobs:
 
       - name: Build wheels
         run: |
-          python -m cibuildwheel --output-dir wheelhouse
+          python -m cibuildwheel --output-dir wheelhouse \
+            ${{ github.workspace }}/main_checkout/packages/mlir
 
       - uses: actions/upload-artifact@v2
         with:
