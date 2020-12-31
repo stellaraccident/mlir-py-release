@@ -30,6 +30,7 @@ if sys.version_info < python_min_version:
       platform.python_version(), python_min_version_str))
   sys.exit(-1)
 
+import json
 import os
 import pathlib
 import subprocess
@@ -163,6 +164,18 @@ if not os.path.isfile(os.path.join(llvm_repo_dir, 'llvm', 'CMakeLists.txt')):
   abort(f'Could not find LLVM sources in {llvm_repo_dir}')
 build_dir = os.path.join(repo_root, 'build', 'llvm')
 install_dir = os.path.join(repo_root, 'install', 'llvm')
+
+################################################################################
+# Load version_info.json
+################################################################################
+
+def load_version_info():
+  with open(os.path.join(repo_root, 'version_info.json'), 'rt') as f:
+    return json.load(f)
+try:
+  version_info = load_version_info()
+except FileNotFoundError:
+  version_info = {}
 
 ################################################################################
 # CMake configure.
@@ -305,13 +318,14 @@ header_files = [
     for p in pathlib.Path(install_dir).glob('include/**/*')
 ]
 
-MLIR_LIB_INIT = '''
+MLIR_LIB_INIT = f'''
 import importlib
 import os
 import platform
 
-# TODO: Replace with git version.
-VERSION = "snapshot"
+SUFFIX = "{version_info.get('package-suffix') or ''}"
+VERSION = "{version_info.get('package-version') or '0.1a1'}"
+LLVM_COMMIT = "{version_info.get('llvm-revision') or 'UNKNOWN'}"
 
 _is_windows = platform.system() == "Windows"
 _this_directory = os.path.dirname(__file__)
@@ -334,7 +348,7 @@ def get_cmake_dir(component="mlir"):
 
 def load_extension(name):
   """Loads a native extension bundled with these libraries."""
-  return importlib.import_module(f"_mlir_libs.python.{name}")
+  return importlib.import_module("_mlir_libs.python." + name)
 
 # The standard LLVM distribution tree for Windows is laid out as:
 #   __init__.py (this file)
@@ -378,8 +392,8 @@ def _preload_dependency_windows(public_name):
 
   if found_path is None:
     raise RuntimeError(
-      f"Unable to find dependency DLL {dll_basename} in search "
-      f"path {_dll_search_path}")
+      "Unable to find dependency DLL %s in search "
+      "path %r" % (dll_basename, _dll_search_path))
 
   import ctypes
   _loaded_dlls.append(ctypes.CDLL(found_path))
@@ -394,8 +408,8 @@ with open(os.path.join(install_dir, 'python', '__init__.py'),
   pass
 
 setup(
-    name='mlir',
-    version='0.1a1',
+    name=f'mlir{version_info.get("package-suffix") or ""}',
+    version=version_info.get("package-version") or "0.1a1",
     packages=packages + [
         '_mlir_libs',
         '_mlir_libs.python',

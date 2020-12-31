@@ -4,3 +4,4 @@ build/
 install/
 dist/
 *.egg-info
+version_info.json

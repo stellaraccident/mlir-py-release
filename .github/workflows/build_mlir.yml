@@ -2,7 +2,17 @@ name: Build MLIR Wheels
 
 on:
   push:
-    branches: ['main', 'cidev', 'cidev-windows']
+    branches: ['cidev']
+  workflow_dispatch:
+    inputs:
+      package_suffix:
+        description: 'Suffix to append to package names'
+        required: true
+        default: '-snapshot'
+      package_version:
+        description: 'Version of the package'
+        required: true
+        default: '0.1a1'
 
 jobs:
   build_wheels:
@@ -56,6 +66,17 @@ jobs:
             https://github.com/llvm/llvm-project.git \
             main \
             ./main_checkout/llvm-project.version
+
+      - name: Write version info
+        shell: bash
+        run: |
+          cat << EOF > ./main_checkout/version_info.json
+          {
+            "package-suffix": "${{ github.events.inputs.package_suffix }}",
+            "package-version": "${{ github.events.package_version }}",
+            "llvm-revision": "$(cd ./llvm-project && git rev-parse HEAD)"
+          }
+          EOF
 
       - name: Install cibuildwheel
         shell: bash
