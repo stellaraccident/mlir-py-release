@@ -2,3 +2,4 @@ numpy>=1.19.4
 pybind11>=2.6.1
 # More recent cmake needed for Python3 build in static setup
 cmake>=3.18.4
+ninja

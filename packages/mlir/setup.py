@@ -49,6 +49,8 @@ from distutils.errors import DistutilsArgError
 # Parameters parsed from environment
 ################################################################################
 
+is_windows = platform.system() == 'Windows'
+
 VERBOSE_SCRIPT = True
 RUN_BUILD_DEPS = True
 # see if the user passed a quiet flag to setup.py arguments and respect
@@ -167,22 +169,7 @@ install_dir = os.path.join(repo_root, 'install', 'llvm')
 ################################################################################
 release_mode = get_bool_setting('RELEASE_MODE', True)
 assertions = get_bool_setting('LLVM_ASSERTIONS', False)
-
-# Need to explicitly tell cmake about the python library.
-python_libdir = sysconfig.get_config_var('LIBDIR')
-python_library = sysconfig.get_config_var('LIBRARY')
-if python_libdir and not os.path.isabs(python_library):
-  python_library = os.path.join(python_libdir, python_library)
-
-# On manylinux, python is a static build, which should be fine, but CMake
-# disagrees. Fake it by letting it see a library that will never be needed.
-if not os.path.exists(python_library):
-  python_libdir = os.path.join(install_dir, 'fake_python/lib')
-  os.makedirs(python_libdir, exist_ok=True)
-  python_library = os.path.join(python_libdir,
-                                sysconfig.get_config_var('LIBRARY'))
-  with open(python_library, 'wb') as f:
-    pass
+stripped = '-stripped' if release_mode else ''
 
 cmake_args = [
     f'-S{os.path.join(llvm_repo_dir, "llvm")}',
@@ -196,14 +183,67 @@ cmake_args = [
     '-DLLVM_ENABLE_PROJECTS=mlir',
     '-DMLIR_BINDINGS_PYTHON_ENABLED=ON',
     '-DMLIR_PYTHON_BINDINGS_VERSION_LOCKED=OFF',
-    '-DLLVM_BUILD_LLVM_DYLIB=ON',
     f'-DPython3_EXECUTABLE:FILEPATH={sys.executable}',
     f'-DPython3_INCLUDE_DIR:PATH={sysconfig.get_path("include")}',
-    f'-DPython3_LIBRARY:PATH={python_library}',
 ]
+
+cmake_targets = [
+    'install-MLIRBindingsPythonSources',
+    'install-MLIRBindingsPythonDialects',
+    # Python extensions.
+    f'install-MLIRTransformsBindingsPythonExtension{stripped}',
+    f'install-MLIRCoreBindingsPythonExtension{stripped}',
+]
+
+### HACK: Add a Python3_LIBRARY because cmake needs it, but it legitimately
+### does not exist on manylinux (or any linux static python).
+# Need to explicitly tell cmake about the python library.
+python_libdir = sysconfig.get_config_var('LIBDIR')
+python_library = sysconfig.get_config_var('LIBRARY')
+if python_libdir and not os.path.isabs(python_library):
+  python_library = os.path.join(python_libdir, python_library)
+
+# On manylinux, python is a static build, which should be fine, but CMake
+# disagrees. Fake it by letting it see a library that will never be needed.
+if python_library and not os.path.exists(python_library):
+  python_libdir = os.path.join(install_dir, 'fake_python/lib')
+  os.makedirs(python_libdir, exist_ok=True)
+  python_library = os.path.join(python_libdir,
+                                sysconfig.get_config_var('LIBRARY'))
+  with open(python_library, 'wb') as f:
+    pass
+
+if python_library:
+  cmake_args.append(f'-DPython3_LIBRARY:PATH={python_library}')
+
+### Only enable shared library build on non-windows.
+### TODO: Enable shared library builds on windows.
+if not is_windows:
+  cmake_args.append('-DLLVM_BUILD_LLVM_DYLIB=ON')
+  # Enable development mode targets.
+  cmake_targets.extend([
+    # Headers.
+    'install-llvm-headers',
+    'install-mlir-headers',
+    # CMake exports.
+    'install-cmake-exports',
+    'install-mlir-cmake-exports',
+    # Shared libs.
+    f'install-MLIR{stripped}',
+    f'install-LLVM{stripped}',
+    f'install-MLIRPublicAPI{stripped}',
+    # Tools needed to build.
+    f'install-mlir-tblgen{stripped}',
+  ])
+
+### Detect generator.
 if use_tool_path('ninja'):
   report('Using ninja')
   cmake_args.append('-GNinja')
+elif is_windows:
+  cmake_args.extend(['-G', 'NMake Makefiles'])
+
+# Detect other build tools.
 use_ccache = use_tool_path('ccache')
 if use_ccache:
   report(f'Using ccache {use_ccache}')
@@ -218,45 +258,29 @@ subprocess.check_call(['cmake'] + cmake_args)
 if CMAKE_ONLY:
   sys.exit(0)
 
-stripped = '-stripped' if release_mode else ''
 cmake_build_args = [
     'cmake',
     '--build',
     build_dir,
     '--target',
-    'install-llvm-headers',
-    'install-mlir-headers',
-    'install-cmake-exports',
-    'install-mlir-cmake-exports',
-    'install-MLIRBindingsPythonSources',
-    'install-MLIRBindingsPythonDialects',
-    # Python extensions.
-    f'install-MLIRTransformsBindingsPythonExtension{stripped}',
-    f'install-MLIRCoreBindingsPythonExtension{stripped}',
-    # Shared libs.
-    f'install-MLIR{stripped}',
-    f'install-LLVM{stripped}',
-    f'install-MLIRPublicAPI{stripped}',
-    # Tools needed to build.
-    f'install-mlir-tblgen{stripped}',
-]
+] + cmake_targets
 report(f'Running cmake (build/install): {" ".join(cmake_build_args)}')
 subprocess.check_call(cmake_build_args)
 
-if __name__ == '__main__':
-  # Parse the command line and check the arguments
-  # before we proceed with building deps and setup
-  dist = Distribution()
-  dist.script_name = sys.argv[0]
-  dist.script_args = sys.argv[1:]
-  try:
-    ok = dist.parse_command_line()
-  except DistutilsArgError as msg:
-    raise SystemExit(core.gen_usage(dist.script_name) + "\nerror: %s" % msg)
-  if not ok:
-    report('Finished running cmake configure and configured to exit.')
-    report(f'You can continue manually in the build dir: {build_dir}')
-    sys.exit()
+### Hand-off to setuptools.
+# Parse the command line and check the arguments
+# before we proceed with building deps and setup
+dist = Distribution()
+dist.script_name = sys.argv[0]
+dist.script_args = sys.argv[1:]
+try:
+  ok = dist.parse_command_line()
+except DistutilsArgError as msg:
+  raise SystemExit(core.gen_usage(dist.script_name) + "\nerror: %s" % msg)
+if not ok:
+  report('Finished running cmake configure and configured to exit.')
+  report(f'You can continue manually in the build dir: {build_dir}')
+  sys.exit()
 
 # We do something tricky here with the directory layouts, synthesizing a
 # top-level |mlir| package for the pure-python parts from $install_dir/python.
@@ -375,7 +399,6 @@ setup(
         "Apache-2.0 WITH LLVM-exception", "Natural Language :: English",
         "Programming Language :: C", "Programming Language :: C++",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: Implementation :: CPython"
     ],
     license='Apache-2.0 WITH LLVM-exception',
