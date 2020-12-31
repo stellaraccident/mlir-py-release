@@ -190,6 +190,8 @@ cmake_args = [
 cmake_targets = [
     'install-MLIRBindingsPythonSources',
     'install-MLIRBindingsPythonDialects',
+    # C-API shared library/DLL.
+    f'install-MLIRPublicAPI{stripped}',
     # Python extensions.
     f'install-MLIRTransformsBindingsPythonExtension{stripped}',
     f'install-MLIRCoreBindingsPythonExtension{stripped}',
@@ -231,7 +233,6 @@ if not is_windows:
     # Shared libs.
     f'install-MLIR{stripped}',
     f'install-LLVM{stripped}',
-    f'install-MLIRPublicAPI{stripped}',
     # Tools needed to build.
     f'install-mlir-tblgen{stripped}',
   ])
@@ -307,9 +308,13 @@ header_files = [
 MLIR_LIB_INIT = '''
 import importlib
 import os
+import platform
 
 # TODO: Replace with git version.
 VERSION = "snapshot"
+
+_is_windows = platform.system() == "Windows"
+_this_directory = os.path.dirname(__file__)
 
 def get_install_dir():
   """Gets the install directory of the LLVM tree."""
@@ -331,9 +336,54 @@ def load_extension(name):
   """Loads a native extension bundled with these libraries."""
   return importlib.import_module(f"_mlir_libs.python.{name}")
 
+# The standard LLVM distribution tree for Windows is laid out as:
+#   __init__.py (this file)
+#   bin/
+#     MLIRPublicAPI.dll
+#   python/
+#     _mlir.*.pyd (dll extension)
+# First check the bin/ directory level for DLLs co-located with the pyd
+# file, and then fall back to searching the python/ directory.
+_dll_search_path = [
+  os.path.join(_this_directory, "bin"),
+  os.path.join(_this_directory, "python"),
+]
+
+# Stash loaded DLLs to keep them alive.
+_loaded_dlls = []
+
 def preload_dependency(public_name):
-  # TODO: Remove this. Just for compatibility with in-tree builds.
-  pass
+  """Preloads a dylib by its soname or DLL name.
+
+  On Windows and Linux, doing this prior to loading a dependency will populate
+  the library in the flat namespace so that a subsequent library that depend
+  on it will resolve to this preloaded version.
+
+  On OSX, resolution is completely path based so this facility no-ops. On
+  Linux, as long as RPATHs are setup properly, resolution is path based but
+  this facility can still act as an escape hatch for relocatable distributions.
+  """
+  if _is_windows:
+    _preload_dependency_windows(public_name)
+
+
+def _preload_dependency_windows(public_name):
+  dll_basename = public_name + ".dll"
+  found_path = None
+  for search_dir in _dll_search_path:
+    candidate_path = os.path.join(search_dir, dll_basename)
+    if os.path.exists(candidate_path):
+      found_path = candidate_path
+      break
+
+  if found_path is None:
+    raise RuntimeError(
+      f"Unable to find dependency DLL {dll_basename} in search "
+      f"path {_dll_search_path}")
+
+  import ctypes
+  _loaded_dlls.append(ctypes.CDLL(found_path))
+
 '''
 
 # Turn the install directory into a valid package.
