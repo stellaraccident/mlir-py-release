@@ -1,4 +1,4 @@
-name: Build Revisions
+name: Bump Revisions
 
 on:
   workflow_dispatch:
