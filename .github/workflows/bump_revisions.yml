@@ -48,4 +48,4 @@ jobs:
         with:
           workflow: Build MLIR Wheels
           token: ${{ secrets.WRITE_ACCESS_TOKEN }}
-          inputs: '{"package-suffix": "-snapshot", "package_version": "${{ env.package_version }}"}'
+          inputs: '{"package_suffix": "-snapshot", "package_version": "${{ env.package_version }}"}'
