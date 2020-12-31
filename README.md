@@ -4,7 +4,7 @@ This repository contains setup and packaging scripts for MLIR related
 projects that need to build together. They may eventually go to their
 respective homes, but developing them together for now helps.
 
-![Build MLIR Wheels](https://github.com/stellaraccident/mlir-py-release/workflows/Build%20MLIR%20Wheels/badge.svg)
+[![Build MLIR Wheels](https://github.com/stellaraccident/mlir-py-release/workflows/Build%20MLIR%20Wheels/badge.svg)](https://github.com/stellaraccident/mlir-py-release/actions?query=workflow%3A%22Build+MLIR+Wheels%22+branch%3Amain)
 
 ## Prep
 
