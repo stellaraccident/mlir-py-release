@@ -249,7 +249,7 @@ if use_ccache:
   report(f'Using ccache {use_ccache}')
   cmake_args.append(f'-DCMAKE_CXX_COMPILER_LAUNCHER={use_ccache}')
 use_lld = use_tool_path('lld')
-if use_lld:
+if not is_windows and use_lld:
   report(f'Using linker {use_lld}')
   cmake_args.append('-DLLVM_USE_LINKER=lld')
 
