@@ -11,7 +11,7 @@ jobs:
       - name: Checking out repository
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WRITE_ACCESS_TOKEN }}
 
       - name: Update revisions
         run: |
@@ -26,6 +26,8 @@ jobs:
           git add ./llvm-project.version
           echo "has_diff=false" >> $GITHUB_ENV
           git diff --cached --exit-code || echo "has_diff=true" >> $GITHUB_ENV
+          echo "package_version=$(printf '%(%Y%m%d)T.${{ github.run_number }}')" >> $GITHUB_ENV
+
       - name: Committing updates
         if: env.has_diff == 'true'
         run: |
@@ -37,5 +39,12 @@ jobs:
         if: env.has_diff == 'true'
         uses: ad-m/github-push-action@v0.5.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.WRITE_ACCESS_TOKEN }}
           branch: main
+
+      - name: "Invoke workflow :: Build MLIR Wheels"
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Build MLIR Wheels
+          token: ${{ secrets.WRITE_ACCESS_TOKEN }}
+          inputs: '{"package-suffix": "-snapshot", "package_version": "${{ env.package_version }}"}'
