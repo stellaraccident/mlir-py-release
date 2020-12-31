@@ -9,7 +9,7 @@ on:
       force_workflow:
         description: "Force run the workflows even if no changes"
         required: false
-        default: "false"
+        default: "true"
 
 jobs:
   bump_revisions:
