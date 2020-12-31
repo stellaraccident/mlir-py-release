@@ -61,6 +61,19 @@ jobs:
           branch: main
           tags: true
 
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.WRITE_ACCESS_TOKEN }}
+        with:
+          tag_name: ${{ env.tag_name }}
+          release_name: mlir binaries ${{ env.tag_name }}
+          body: |
+            Automatic release of llvm-project@${{ env.llvm_head }}
+          draft: true
+          prerelease: false
+
       - name: "Invoke workflow :: Build MLIR Wheels"
         if: "env.has_diff == 'true' || github.event.inputs.force_workflow == 'true'"
         uses: benc-uk/workflow-dispatch@v1
@@ -68,4 +81,4 @@ jobs:
           workflow: Build MLIR Wheels
           token: ${{ secrets.WRITE_ACCESS_TOKEN }}
           ref: "${{ env.tag_name }}"
-          inputs: '{"package_suffix": "-snapshot", "package_version": "${{ env.package_version }}"}'
+          inputs: '{"package_suffix": "-snapshot", "package_version": "${{ env.package_version }}", "release_id": "${{ steps.create_release.outputs.id }}"}'

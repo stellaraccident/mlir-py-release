@@ -1,8 +1,6 @@
 name: Build MLIR Wheels
 
 on:
-  push:
-    branches: ['cidev']
   workflow_dispatch:
     inputs:
       package_suffix:
@@ -13,6 +11,10 @@ on:
         description: 'Version of the package'
         required: true
         default: '0.1a1'
+      release_id:
+        description: 'Release id to upload artifacts to'
+        required: true
+        default: ''
 
 jobs:
   build_wheels:
@@ -101,3 +103,13 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           path: ./wheelhouse/*.whl
+
+      - name: Upload Release Assets
+        if: github.event.inputs.release_id != ''
+        id: upload-release-assets
+        uses: dwenegar/upload-release-assets@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.WRITE_ACCESS_TOKEN }}
+        with:
+          release_id: ${{ github.event.inputs.release_id }}
+          assets_path: ./wheelhouse/*.whl
