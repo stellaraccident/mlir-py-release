@@ -168,17 +168,21 @@ install_dir = os.path.join(repo_root, 'install', 'llvm')
 release_mode = get_bool_setting('RELEASE_MODE', True)
 assertions = get_bool_setting('LLVM_ASSERTIONS', False)
 
-#python_libdir = sysconfig.get_config_var('LIBDIR')
-#python_library = sysconfig.get_config_var('LDLIBRARY')
-# if python_libdir:
-#   python_library = os.path.join(python_libdir, python_library)
+# Need to explicitly tell cmake about the python library.
+python_libdir = sysconfig.get_config_var('LIBDIR')
+python_library = sysconfig.get_config_var('LIBRARY')
+if python_libdir and not os.path.isabs(python_library):
+  python_library = os.path.join(python_libdir, python_library)
 
 # On manylinux, python is a static build, which should be fine, but CMake
 # disagrees. Fake it by letting it see a library that will never be needed.
-python_libdir = os.path.join(install_dir, 'fake_python/lib')
-os.makedirs(python_libdir, exist_ok=True)
-python_library = os.path.join(python_libdir, sysconfig.get_config_var('LIBRARY'))
-with open(python_library, 'wb') as f: pass
+if not os.path.exists(python_library):
+  python_libdir = os.path.join(install_dir, 'fake_python/lib')
+  os.makedirs(python_libdir, exist_ok=True)
+  python_library = os.path.join(python_libdir,
+                                sysconfig.get_config_var('LIBRARY'))
+  with open(python_library, 'wb') as f:
+    pass
 
 cmake_args = [
     f'-S{os.path.join(llvm_repo_dir, "llvm")}',
