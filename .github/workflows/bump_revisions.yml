@@ -38,6 +38,7 @@ jobs:
           echo "has_diff=false" >> $GITHUB_ENV
           git diff --cached --exit-code || echo "has_diff=true" >> $GITHUB_ENV
           echo "package_version=$(printf '%(%Y%m%d)T.${{ github.run_number }}')" >> $GITHUB_ENV
+          echo "tag_name=snapshot-${package_version}" >> $GITHUB_ENV
 
       - name: Committing updates
         if: env.has_diff == 'true'
@@ -49,7 +50,7 @@ jobs:
 
       - name: Updating snapshot tag
         run: |
-          git tag -f snapshot
+          git tag "${tag_name}"
 
       - name: Pushing changes
         uses: ad-m/github-push-action@v0.6.0
@@ -64,5 +65,5 @@ jobs:
         with:
           workflow: Build MLIR Wheels
           token: ${{ secrets.WRITE_ACCESS_TOKEN }}
-          ref: "snapshot"
+          ref: "${{ env.tag_name }}"
           inputs: '{"package_suffix": "-snapshot", "package_version": "${{ env.package_version }}"}'
