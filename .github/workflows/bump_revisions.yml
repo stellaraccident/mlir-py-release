@@ -2,6 +2,11 @@ name: Bump Revisions
 
 on:
   workflow_dispatch:
+    inputs:
+      force_workflow:
+        description: "Force run the workflows even if no changes"
+        required: false
+        default: "true"
 
 jobs:
   bump_revisions:
@@ -49,7 +54,7 @@ jobs:
           echo "invoke_workflow_ref=${current_head}" >> $GITHUB_ENV
 
       - name: "Invoke workflow :: Build MLIR Wheels"
-        if: env.has_diff == 'true'
+        if: "env.has_diff == 'true' || github.events.inputs.force_workflow == 'true'"
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: Build MLIR Wheels
