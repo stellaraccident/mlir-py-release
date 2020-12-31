@@ -1,6 +1,9 @@
 name: Bump Revisions
 
 on:
+  schedule:
+    - cron:  '0 10,22 * * *'
+
   workflow_dispatch:
     inputs:
       force_workflow:
