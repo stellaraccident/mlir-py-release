@@ -21,6 +21,9 @@ jobs:
         with:
           token: ${{ secrets.WRITE_ACCESS_TOKEN }}
 
+      - name: Fetch tags
+        run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+
       - name: Update revisions
         run: |
           llvm_head="$(git ls-remote -h --refs --exit-code https://github.com/llvm/llvm-project.git main | awk '{print $1}')"
