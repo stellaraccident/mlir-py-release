@@ -72,8 +72,8 @@ jobs:
         run: |
           cat << EOF > ./main_checkout/version_info.json
           {
-            "package-suffix": "${{ github.events.inputs.package_suffix }}",
-            "package-version": "${{ github.events.package_version }}",
+            "package-suffix": "${{ github.event.inputs.package_suffix }}",
+            "package-version": "${{ github.event.package_version }}",
             "llvm-revision": "$(cd ./llvm-project && git rev-parse HEAD)"
           }
           EOF

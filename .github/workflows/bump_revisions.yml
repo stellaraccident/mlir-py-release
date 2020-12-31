@@ -41,8 +41,11 @@ jobs:
           git commit -am "Automatically updated llvm-project to ${llvm_head}"
           git tag -f snapshot
 
+      - name: Updating snapshot tag
+        run: |
+          git tag -f snapshot
+
       - name: Pushing changes
-        if: env.has_diff == 'true'
         uses: ad-m/github-push-action@v0.5.0
         with:
           github_token: ${{ secrets.WRITE_ACCESS_TOKEN }}
@@ -50,7 +53,7 @@ jobs:
           tags: true
 
       - name: "Invoke workflow :: Build MLIR Wheels"
-        if: "env.has_diff == 'true' || github.events.inputs.force_workflow == 'true'"
+        if: "env.has_diff == 'true' || github.event.inputs.force_workflow == 'true'"
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: Build MLIR Wheels
