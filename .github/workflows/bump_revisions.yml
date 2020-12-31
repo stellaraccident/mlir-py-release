@@ -43,6 +43,7 @@ jobs:
           branch: main
 
       - name: "Invoke workflow :: Build MLIR Wheels"
+        if: env.has_diff == 'true'
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: Build MLIR Wheels
