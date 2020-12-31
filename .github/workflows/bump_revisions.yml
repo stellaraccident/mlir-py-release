@@ -71,8 +71,8 @@ jobs:
           release_name: mlir binaries ${{ env.tag_name }}
           body: |
             Automatic release of llvm-project@${{ env.llvm_head }}
-          draft: true
-          prerelease: false
+          draft: false
+          prerelease: true
 
       - name: "Invoke workflow :: Build MLIR Wheels"
         if: "env.has_diff == 'true' || github.event.inputs.force_workflow == 'true'"
