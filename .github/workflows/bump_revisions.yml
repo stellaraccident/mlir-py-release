@@ -1,0 +1,41 @@
+name: Build Revisions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bump_revisions:
+    name: "Bump revisions"
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checking out repository
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_WRITE_ACCESS_TOKEN }}
+
+      - name: Update revisions
+        run: |
+          llvm_head="$(git ls-remote -h --refs --exit-code https://github.com/llvm/llvm-project.git main | awk '{print $1}')"
+          echo "llvm-project revision: ${llvm_head}"
+          if [ -z "${llvm_head}" ]; then
+            echo "Could not get head"
+            exit 1
+          fi
+          echo "llvm_head=${llvm_head}" >> $GITHUB_ENV
+          echo "${llvm_head}" > ./llvm-project.version
+          git add ./llvm-project.version
+          echo "has_diff=false" >> $GITHUB_ENV
+          git diff --cached --exit-code || echo "has_diff=true" >> $GITHUB_ENV
+      - name: Committing updates
+        if: env.has_diff == 'true'
+        run: |
+          git config --local user.email "mlir-py-release-bot-noreply@llvm.org"
+          git config --local user.name "Bump revision action"
+          git commit -am "Automatically updated llvm-project to ${llvm_head}"
+
+      - name: Pushing changes
+        if: env.has_diff == 'true'
+        uses: ad-m/github-push-action@v0.5.0
+        with:
+          github_token: ${{ secrets.GITHUB_WRITE_ACCESS_TOKEN }}
+          branch: main
