@@ -42,10 +42,17 @@ jobs:
           github_token: ${{ secrets.WRITE_ACCESS_TOKEN }}
           branch: main
 
+      - name: Resolve current ref
+        run: |
+          current_head="$(git rev-parse HEAD)"
+          echo "Current HEAD = ${current_head}"
+          echo "invoke_workflow_ref=${current_head}" >> $GITHUB_ENV
+
       - name: "Invoke workflow :: Build MLIR Wheels"
         if: env.has_diff == 'true'
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: Build MLIR Wheels
           token: ${{ secrets.WRITE_ACCESS_TOKEN }}
+          ref: ${{ env.invoke_workflow_ref }}
           inputs: '{"package_suffix": "-snapshot", "package_version": "${{ env.package_version }}"}'
