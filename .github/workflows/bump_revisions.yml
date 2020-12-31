@@ -37,8 +37,10 @@ jobs:
           git add ./llvm-project.version
           echo "has_diff=false" >> $GITHUB_ENV
           git diff --cached --exit-code || echo "has_diff=true" >> $GITHUB_ENV
-          echo "package_version=$(printf '%(%Y%m%d)T.${{ github.run_number }}')" >> $GITHUB_ENV
-          echo "tag_name=snapshot-${package_version}" >> $GITHUB_ENV
+          package_version="$(printf '%(%Y%m%d)T.${{ github.run_number }}')"
+          tag_name="snapshot-${package_version}"
+          echo "package_version=${package_version}" >> $GITHUB_ENV
+          echo "tag_name=${tag_name}" >> $GITHUB_ENV
 
       - name: Committing updates
         if: env.has_diff == 'true'
