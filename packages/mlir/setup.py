@@ -340,7 +340,7 @@ def get_include_dir():
 
 def get_lib_dir():
   """Gets the directory for include files."""
-  return os.path.join(get_lib_dir(), "lib")
+  return os.path.join(get_install_dir(), "lib")
 
 def get_cmake_dir(component="mlir"):
   """Gets the CMake config directory for a component."""
