@@ -53,8 +53,7 @@ Show version info:
 '8d541a1fbe6d92a3fadf6d7d8e8209ed6c76e092'
 >>> _mlir_libs.VERSION
 '20201231.14'
->>> _mlir_libs.get_cmake_dir() # TODO: Not working
->>> _mlir_libs.get_lib_dir()   # TODO: Not working
+>>> _mlir_libs.get_lib_dir()
 >>> _mlir_libs.get_include_dir()
 ```
 
@@ -101,3 +100,33 @@ python ./setup_mlir.py install
 ```shell
 python ./setup_mlir.py bdist_wheel
 ```
+
+## Design methodology
+
+The binary distribution is taking the approach of building minimal packages
+with the API granularity that we intend to make public. This means that some
+things are not available yet, usually because their underlying public APIs
+are still in progress (or not started). It is much more effective to only
+add things that you intend to support vs adding everything in a haphazzard
+way and never be able to trim it down again.
+
+As an example, a static, visibility hidden build of `libMLIRPublicAPI.so`
+comes in at 6MiB on manylinux2014 (and the entire python wheel compresses down
+to ~2.5MiB). To contrast this, a dynamic build of `libMLIR.so` is roughly 4x
+that size, and `libLLVM.so` even more-so (by multiples). Included in the
+smaller library are all core dialects, the public C-API, public C-API headers,
+and core transformations. For things that *only* need this, the size is fairly
+compelling.
+
+There is definitely work to layer the other features that are useful, such
+as JIT-ing, execution engines, LLVM code generation, etc, but these are
+solvable technical problems that should only add cost to the people who
+need them. By starting small and adding, we should be able to get to a
+reasonable place and acrete good API boundaries in the process. This may mean
+that some integrations need to wait, but that is fine.
+
+It should also be noted that while a lot of people come to MLIR as a gateway
+to LLVM code generation, it is useful for much more than that. As an example,
+a full, linear algebra compilation system to SPIR-V based GPUs *only* needs
+roughly the features in the above core API. Ditto for systems like IREE when
+not targeting CPUs via LLVM.

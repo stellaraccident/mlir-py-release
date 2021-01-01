@@ -187,6 +187,8 @@ stripped = '-stripped' if release_mode else ''
 cmake_args = [
     f'-S{os.path.join(llvm_repo_dir, "llvm")}',
     f'-B{build_dir}',
+    '-DCMAKE_CXX_VISIBILITY_PRESET=hidden',
+    '-DCMAKE_VISIBILITY_INLINES_HIDDEN=ON',
     # We use private libs and special fixups to find everything.
     '-DCMAKE_PLATFORM_NO_VERSIONED_SONAME=ON',
     f'-DCMAKE_INSTALL_PREFIX={install_dir}',
@@ -201,6 +203,9 @@ cmake_args = [
 ]
 
 cmake_targets = [
+    # Headers.
+    'install-mlir-headers',
+    # Python bindings.
     'install-MLIRBindingsPythonSources',
     'install-MLIRBindingsPythonDialects',
     # C-API shared library/DLL.
@@ -232,8 +237,8 @@ if python_library:
   cmake_args.append(f'-DPython3_LIBRARY:PATH={python_library}')
 
 ### Only enable shared library build on non-windows.
-### TODO: Enable shared library builds on windows.
-if not is_windows:
+### TODO: Break this out into a separate dev package.
+if not is_windows and False:
   cmake_args.append('-DLLVM_BUILD_LLVM_DYLIB=ON')
   # Enable development mode targets.
   cmake_targets.extend([
@@ -315,7 +320,7 @@ report('Found packages:', packages)
 
 header_files = [
     str(p.relative_to(install_dir))
-    for p in pathlib.Path(install_dir).glob('include/**/*')
+    for p in pathlib.Path(install_dir).glob('include/mlir-c/**/*')
 ]
 
 MLIR_LIB_INIT = f'''
@@ -341,10 +346,6 @@ def get_include_dir():
 def get_lib_dir():
   """Gets the directory for include files."""
   return os.path.join(get_install_dir(), "lib")
-
-def get_cmake_dir(component="mlir"):
-  """Gets the CMake config directory for a component."""
-  return os.path.join(get_lib_dir(), "cmake", component)
 
 def load_extension(name):
   """Loads a native extension bundled with these libraries."""
@@ -437,11 +438,7 @@ setup(
             'lib/*.lib',
             # Note that wild-carding all *.so duplicates all of the symlinks,
             # so we list one by one just the public names.
-            'lib/libLLVM.so',
-            'lib/libMLIR.so',
             'lib/libMLIRPublicAPI.so',
-            'lib/libLLVM.dylib',
-            'lib/libMLIR.dylib',
             'lib/libMLIRPublicAPI.dylib',
 
             # Cmake files.
