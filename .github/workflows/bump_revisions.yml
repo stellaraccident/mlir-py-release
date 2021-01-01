@@ -48,7 +48,6 @@ jobs:
           git config --local user.email "mlir-py-release-bot-noreply@llvm.org"
           git config --local user.name "Bump revision action"
           git commit -am "Automatically updated llvm-project to ${llvm_head}"
-          git tag -f snapshot
 
       - name: Updating snapshot tag
         run: |
