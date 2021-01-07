@@ -178,6 +178,18 @@ except FileNotFoundError:
   version_info = {}
 
 ################################################################################
+# Clean up CMakeCache.txt.
+# This may seem counter-intuitive, but for a CI that may cycle through a
+# couple of configurations, just clearing the cache between runs can let us
+# get some incrementality to the artifacts while building for different
+# python versions.
+################################################################################
+
+cmake_cache_file = os.path.join(build_dir, 'CMakeCache.txt')
+if os.path.exists(cmake_cache_file):
+  report('Removing existing CMakeCache.txt')
+
+################################################################################
 # CMake configure.
 ################################################################################
 release_mode = get_bool_setting('RELEASE_MODE', True)
