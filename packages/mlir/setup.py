@@ -188,6 +188,7 @@ except FileNotFoundError:
 cmake_cache_file = os.path.join(build_dir, 'CMakeCache.txt')
 if os.path.exists(cmake_cache_file):
   report('Removing existing CMakeCache.txt')
+  os.unlink(cmake_cache_file)
 
 ################################################################################
 # CMake configure.
@@ -211,6 +212,9 @@ cmake_args = [
     '-DMLIR_BINDINGS_PYTHON_ENABLED=ON',
     '-DMLIR_PYTHON_BINDINGS_VERSION_LOCKED=OFF',
     f'-DPython3_EXECUTABLE:FILEPATH={sys.executable}',
+    # Configure the obsolete python executable property too. It can latch
+    # incorrectly if it hits the wrong way.
+    f'-DPYTHON_EXECUTABLE:FILEPATH={sys.executable}',
     f'-DPython3_INCLUDE_DIR:PATH={sysconfig.get_path("include")}',
 ]
 
